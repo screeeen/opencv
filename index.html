@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Fotografía Estroboscópica de Movimiento</title>
+  <style>
+    body { font-family: sans-serif; }
+    canvas, video, img { display: block; margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <h2>Video de Movimiento</h2>
+  <video id="video" width="640" height="480" controls muted>
+    <source src="video.mov" type="video/mp4">
+    Tu navegador no soporta video.
+  </video>
+
+  <label for="frameInterval">Guardar cada X frames:</label>
+  <input type="number" id="frameInterval" value="6" min="1" />
+  
+  <canvas id="canvasOutput" width="640" height="480"></canvas>
+
+  <h3>Resultado Estroboscópico</h3>
+  <canvas id="maskCanvas" width="640" height="480"></canvas>
+  <canvas id="strobeCanvas" width="640" height="480"></canvas>
+
+  <!-- OpenCV.js -->
+  <script async src="https://docs.opencv.org/4.7.0/opencv.js" onload="onOpenCvReady();"></script>
+
+  <script>
+    function onOpenCvReady() {
+      const video = document.getElementById('video');
+      video.addEventListener('play', () => {
+        processVideo(video);
+      });
+    }
+
+    function processVideo(video) {
+      const canvas = document.getElementById('canvasOutput');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+      const maskCanvas = document.getElementById('maskCanvas');
+      const maskCtx = maskCanvas.getContext('2d');
+      
+      const strobeCanvas = document.getElementById('strobeCanvas');
+      const strobeCtx = strobeCanvas.getContext('2d');
+
+      const frameInput = document.getElementById('frameInterval');
+      let frameCount = 0;
+
+      let src = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
+      let gray = new cv.Mat();
+      let grayPrev = new cv.Mat();
+      let diff = new cv.Mat();
+      let mask = new cv.Mat();
+      let kernel = cv.Mat.ones(3, 3, cv.CV_8U);
+      let maskRGBA = new cv.Mat();
+      let inThreshold = 10
+      let outThreshold = 200;
+
+      let background = null;
+
+      function updateFrame() {
+        if (video.paused || video.ended) {
+
+
+        background = new cv.Mat();
+        src.copyTo(background);
+
+
+          src.delete(); gray.delete(); grayPrev.delete();
+          diff.delete(); mask.delete(); kernel.delete(); maskRGBA.delete();
+
+
+          return;
+        }
+
+        ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+        let imageData = ctx.getImageData(0, 0, video.videoWidth, video.videoHeight);
+        src.data.set(imageData.data);
+        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+
+        if (!grayPrev.empty()) {
+          cv.absdiff(gray, grayPrev, diff);
+          cv.threshold(diff, mask, inThreshold, outThreshold, cv.THRESH_BINARY);
+          cv.morphologyEx(mask, mask, cv.MORPH_OPEN, kernel);
+          cv.imshow('canvasOutput', mask);
+
+          frameCount++;
+          let frameInterval = parseInt(frameInput.value, 10);
+
+          if (frameCount % frameInterval === 0) {
+            // Convertimos la máscara a RGBA para superponer
+            cv.cvtColor(mask, maskRGBA, cv.COLOR_GRAY2RGBA);
+
+            // Dibujamos sobre el canvas final como una estampa
+            let tempCanvas = document.createElement('canvas');
+            tempCanvas.width = video.videoWidth;
+            tempCanvas.height = video.videoHeight;
+            let tempCtx = tempCanvas.getContext('2d');
+            cv.imshow(tempCanvas, mask);
+
+            let result = new cv.Mat();
+            let rgbaPlanes = new cv.MatVector();
+            let rgb = new cv.Mat();
+
+            // Separar los canales RGB
+            cv.cvtColor(src, rgb, cv.COLOR_RGBA2RGB);
+            cv.split(rgb, rgbaPlanes); // R, G, B
+
+			cv.bitwise_not(mask, mask);
+
+            // Agregar canal alfa según la máscara
+            rgbaPlanes.push_back(mask); // el blanco será opaco, negro será transparente
+
+            // Unir canales RGBA
+            cv.merge(rgbaPlanes, result);
+
+
+            // Mostrar el resultado
+            // cv.imshow(maskCanvas, mask);
+
+            cv.imshow(tempCanvas, result);
+
+            // Liberar memoria
+            // src.delete(); gray.delete(); mask.delete(); kernel.delete();
+            // rgb.delete(); result.delete(); rgbaPlanes.delete();
+
+
+
+
+            // Usamos "lighten" para mezclar los frames blancos (movimiento)
+            // maskCtx.globalCompositeOperation = 'lighten';
+            // maskCtx.drawImage(tempCanvas, 0, 0);
+
+            strobeCtx.globalCompositeOperation = 'lighten';
+            strobeCtx.drawImage(tempCanvas, 0, 0);
+          }
+
+
+
+                // cv.imshow(maskCanvas, background);
+        }
+
+        gray.copyTo(grayPrev);
+        requestAnimationFrame(updateFrame);
+      }
+
+
+      requestAnimationFrame(updateFrame);
+    }
+  </script>
+</body>
+</html>
