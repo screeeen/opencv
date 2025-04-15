@@ -1,27 +1,47 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Fotografía Estroboscópica de Movimiento</title>
-  <style>
-    body { font-family: sans-serif; }
-    canvas, video, img { display: block; margin: 10px 0; }
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>strobocam</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <h2>Video de Movimiento</h2>
-  <video id="video" width="640" height="480" controls muted>
+  <h2>strobocam</h2>
+  <video id="video" controls muted>
     <source src="video.mov" type="video/mp4">
     Tu navegador no soporta video.
   </video>
 
-  <label for="frameInterval">Guardar cada X frames:</label>
-  <input type="number" id="frameInterval" value="6" min="1" />
+  <div class="controls-container">
+    <div class="control-group">
+      <label for="frameInterval">Guardar cada X frames:</label>
+      <input type="number" id="frameInterval" value="6" min="1" />
+    </div>
+
+    <div class="control-group">
+      <label for="inThreshold">Umbral Inferior:</label>
+      <input type="range" id="inThreshold" min="1" max="50" value="10">
+      <span id="inThresholdValue" class="threshold-value">10</span>
+    </div>
+
+    <div class="control-group">
+      <label for="outThreshold">Umbral Superior:</label>
+      <input type="range" id="outThreshold" min="100" max="255" value="200">
+      <span id="outThresholdValue" class="threshold-value">200</span>
+    </div>
+  </div>
   
   <canvas id="canvasOutput" width="640" height="480"></canvas>
 
-  <h3>Resultado Estroboscópico</h3>
-  <canvas id="maskCanvas" width="640" height="480"></canvas>
+  <h3>strobo result</h3>
+  
   <canvas id="strobeCanvas" width="640" height="480"></canvas>
+  
+  <div class="controls-container">
+    <button id="downloadBtn" class="download-btn">Descargar Imagen Estroboscópica</button>
+    <button id="resetBtn" class="download-btn">Reiniciar</button>
+  </div>
 
   <!-- OpenCV.js -->
   <script async src="https://docs.opencv.org/4.7.0/opencv.js" onload="onOpenCvReady();"></script>
@@ -37,15 +57,27 @@
     function processVideo(video) {
       const canvas = document.getElementById('canvasOutput');
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-      const maskCanvas = document.getElementById('maskCanvas');
-      const maskCtx = maskCanvas.getContext('2d');
       
       const strobeCanvas = document.getElementById('strobeCanvas');
       const strobeCtx = strobeCanvas.getContext('2d');
 
       const frameInput = document.getElementById('frameInterval');
       let frameCount = 0;
+
+      // Obtener referencias a los sliders y sus valores
+      const inThresholdSlider = document.getElementById('inThreshold');
+      const outThresholdSlider = document.getElementById('outThreshold');
+      const inThresholdValue = document.getElementById('inThresholdValue');
+      const outThresholdValue = document.getElementById('outThresholdValue');
+
+      // Actualizar valores mostrados cuando cambien los sliders
+      inThresholdSlider.addEventListener('input', () => {
+        inThresholdValue.textContent = inThresholdSlider.value;
+      });
+
+      outThresholdSlider.addEventListener('input', () => {
+        outThresholdValue.textContent = outThresholdSlider.value;
+      });
 
       let src = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
       let gray = new cv.Mat();
@@ -81,7 +113,7 @@
 
         if (!grayPrev.empty()) {
           cv.absdiff(gray, grayPrev, diff);
-          cv.threshold(diff, mask, inThreshold, outThreshold, cv.THRESH_BINARY);
+          cv.threshold(diff, mask, parseInt(inThresholdSlider.value), parseInt(outThresholdSlider.value), cv.THRESH_BINARY);
           cv.morphologyEx(mask, mask, cv.MORPH_OPEN, kernel);
           cv.imshow('canvasOutput', mask);
 
@@ -148,6 +180,23 @@
 
       requestAnimationFrame(updateFrame);
     }
+
+    // Función para descargar la imagen estroboscópica
+    document.getElementById('downloadBtn').addEventListener('click', () => {
+      const strobeCanvas = document.getElementById('strobeCanvas');
+      const link = document.createElement('a');
+      link.download = 'imagen_estroboscopica.png';
+      link.href = strobeCanvas.toDataURL('image/png');
+      link.click();
+    });
+
+    // Función para reiniciar la aplicación
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      const strobeCanvas = document.getElementById('strobeCanvas');
+      const strobeCtx = strobeCanvas.getContext('2d');
+      strobeCtx.clearRect(0, 0, strobeCanvas.width, strobeCanvas.height);
+      frameCount = 0;
+    });
   </script>
 </body>
 </html>
