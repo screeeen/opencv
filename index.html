@@ -8,10 +8,18 @@
 </head>
 <body>
   <h2>strobocam</h2>
-  <video id="video" controls muted>
+  <div class="video-upload-container">
+    <input type="file" id="videoInput" accept="video/*" class="video-input" />
+    <label for="videoInput" class="video-input-label">Seleccionar Video</label>
+  </div>
+  <video id="video" muted>
     <source src="video.mov" type="video/mp4">
     Tu navegador no soporta video.
   </video>
+
+  <div class="controls-container">
+    <button id="playBtn" class="download-btn">Play</button>
+  </div>
 
   <div class="controls-container">
     <div class="control-group">
@@ -47,8 +55,41 @@
   <script async src="https://docs.opencv.org/4.7.0/opencv.js" onload="onOpenCvReady();"></script>
 
   <script>
+    // Agregar el manejador de eventos para la carga de video
+    document.getElementById('videoInput').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      const video = document.getElementById('video');
+      video.src = URL.createObjectURL(file);
+    });
+
+    // Agregar control de reproducción
+    const playBtn = document.getElementById('playBtn');
+    const video = document.getElementById('video');
+
+    playBtn.addEventListener('click', () => {
+      if (video.paused) {
+        video.play();
+        playBtn.textContent = 'Pause';
+      } else {
+        video.pause();
+        playBtn.textContent = 'Play';
+      }
+    });
+
     function onOpenCvReady() {
       const video = document.getElementById('video');
+      
+      // Actualizar dimensiones de los canvas cuando se carga el video
+      video.addEventListener('loadedmetadata', () => {
+        const canvasOutput = document.getElementById('canvasOutput');
+        const strobeCanvas = document.getElementById('strobeCanvas');
+        
+        canvasOutput.width = video.videoWidth;
+        canvasOutput.height = video.videoHeight;
+        strobeCanvas.width = video.videoWidth;
+        strobeCanvas.height = video.videoHeight;
+      });
+
       video.addEventListener('play', () => {
         processVideo(video);
       });

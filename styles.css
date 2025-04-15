@@ -56,6 +56,33 @@ input[type="range"] {
   margin-left: 10px;
 }
 
+.video-upload-container {
+  max-width: 640px;
+  margin: 20px auto;
+  text-align: center;
+}
+
+.video-input {
+  display: none;
+}
+
+.video-input-label {
+  display: inline-block;
+  padding: 12px 20px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: background-color 0.3s;
+}
+
+.video-input-label:hover {
+  background-color: #45a049;
+}
+
 .download-btn {
   display: block;
   width: 100%;
