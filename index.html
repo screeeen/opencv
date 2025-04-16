@@ -131,6 +131,10 @@
       let outThreshold = 200;
 
       let background = null;
+      
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      background = cv.imread(canvas);
+   
 
       function updateFrame() {
         if (video.paused || video.ended) {
@@ -237,6 +241,11 @@
       const strobeCtx = strobeCanvas.getContext('2d');
       strobeCtx.clearRect(0, 0, strobeCanvas.width, strobeCanvas.height);
       frameCount = 0;
+      
+      // Reiniciar el video
+      video.pause();
+      video.currentTime = 0;
+      playBtn.textContent = 'Play';
     });
   </script>
 </body>
