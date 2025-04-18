@@ -56,11 +56,13 @@
 
   <script>
     const video = document.getElementById('video');
+    let isBackgroundPainted = false
 
     // Agregar el manejador de eventos para la carga de video
     document.getElementById('videoInput').addEventListener('change', function(e) {
       const file = e.target.files[0];
       video.src = URL.createObjectURL(file);
+      isBackgroundPainted = false
     });
 
     // Agregar control de reproducción
@@ -96,7 +98,6 @@
     // ----------- setea canvas para opencv
     function onOpenCvReady() {
       const video = document.getElementById('video');
-      
       // Actualizar dimensiones de los canvas cuando se carga el video
       video.addEventListener('loadedmetadata', () => {
         const canvasOutput = document.getElementById('canvasOutput');
@@ -133,21 +134,19 @@
       let grayPrev = new cv.Mat();
       let diff = new cv.Mat();
       let mask = new cv.Mat();
+      let maskPrev = new cv.Mat();
+      let maskDiff = new cv.Mat();
       let kernel = cv.Mat.ones(3, 3, cv.CV_8U);
       let maskRGBA = new cv.Mat();
       let output = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4, new cv.Scalar(0,0,0,0));
-
+      let background = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
    
 
       function updateFrame() {
         if (video.paused || video.ended) {
-
-        // background = new cv.Mat();
-        // src.copyTo(background);
-
         src.delete(); gray.delete(); grayPrev.delete();
         diff.delete(); mask.delete(); kernel.delete(); maskRGBA.delete();
-        
+        maskPrev.delete(); maskDiff.delete();
         console.log('finish')
           return;
         }
@@ -158,6 +157,13 @@
         src.data.set(imageData.data);
         // lo convierte en gray
         cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+        if (isBackgroundPainted === false) {
+          
+          background.data.set(imageData.data);
+          cv.imshow('backgroundCanvas', src);
+
+          isBackgroundPainted = true;
+        }
         
 
         if (!grayPrev.empty()) {
@@ -177,6 +183,15 @@
             // Convertimos la máscara a RGBA para superponer
             cv.cvtColor(mask, maskRGBA, cv.COLOR_GRAY2RGBA);
             
+            // Calcular diferencia negativa entre máscaras
+            //  if (!maskPrev.empty()) {
+            //    cv.subtract(maskPrev, mask, maskDiff);
+            //    cv.threshold(maskDiff, maskDiff, 0, 255, cv.THRESH_BINARY);
+            //    cv.cvtColor(maskDiff, maskDiff, cv.COLOR_GRAY2RGBA);
+            //    cv.min(output, maskDiff, output);
+            //  }
+            //  mask.copyTo(maskPrev);
+            
             let result = new cv.Mat();
             let rgbaPlanes = new cv.MatVector();
             let rgb = new cv.Mat();
@@ -190,13 +205,15 @@
             // Agregar canal alfa según la máscara
             rgbaPlanes.push_back(mask); // el blanco será opaco, negro será transparente
 
-            
             // Unir canales RGBA
             cv.merge(rgbaPlanes, result);
             
             // Acumular result en output usando max
             cv.max(output, result, output);
 
+            // cv.absdiff(output, background, background);
+            cv.imshow(backgroundCanvas, background);
+            
             
 
             let tempCanvas = document.createElement('canvas');
@@ -206,35 +223,13 @@
 
             // Mostrar output en lugar de result
             cv.imshow(tempCanvas, output);
-            
-            
-
-            // Usamos "lighten" para mezclar los frames blancos (movimiento)
-            // maskCtx.globalCompositeOperation = 'lighten';
-            // maskCtx.drawImage(tempCanvas, 0, 0);
-
-            // Establecer el modo de composición para superponer las imágenes
-            //  strobeCtx.globalCompositeOperation = 'source-over';
-            
-            // Ajustar la opacidad para cada frame
-            // strobeCtx.globalAlpha = 0.5;
-            
+           
             // Dibujar la imagen segmentada
             strobeCtx.drawImage(tempCanvas, 0, 0);
             
-            // Restaurar la opacidad por defecto
-            // strobeCtx.globalAlpha = 1.0;
             
-
-          // Liberar memoria
-            // src.delete(); gray.delete(); mask.delete(); kernel.delete();
-            // rgb.delete(); result.delete(); rgbaPlanes.delete();
-
           }
 
-
-
-                // cv.imshow(maskCanvas, background);
         }
 
         gray.copyTo(grayPrev);
