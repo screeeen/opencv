@@ -17,9 +17,7 @@
     Tu navegador no soporta video.
   </video>
 
-  <div class="controls-container">
-    <button id="playBtn" class="download-btn">Play</button>
-  </div>
+
 
   <div class="controls-container">
     <div class="control-group">
@@ -39,12 +37,14 @@
       <span id="outThresholdValue" class="threshold-value">200</span>
     </div>
   </div>
-  
-  <canvas id="canvasOutput" width="640" height="480"></canvas>
 
-  <h3>strobo result</h3>
+  <div class="controls-container">
+    <button id="playBtn" class="download-btn">Play</button>
+  </div>
   
-  <canvas id="strobeCanvas" width="640" height="480"></canvas>
+  <canvas id="canvasOutput"></canvas>
+  <canvas id="strobeCanvas"></canvas>
+  <canvas id="backgroundCanvas"></canvas>
   
   <div class="controls-container">
     <button id="downloadBtn" class="download-btn">Descargar Imagen Estroboscópica</button>
@@ -57,35 +57,17 @@
   <script>
     const video = document.getElementById('video');
 
-    // Función para generar vista previa del primer frame
-    function generatePreview() {
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      video.poster = canvas.toDataURL();
-    }
-
-    // Generar vista previa cuando el video predeterminado esté cargado
-    video.addEventListener('loadeddata', generatePreview);
-
     // Agregar el manejador de eventos para la carga de video
     document.getElementById('videoInput').addEventListener('change', function(e) {
       const file = e.target.files[0];
       video.src = URL.createObjectURL(file);
-      
-      // La vista previa se generará automáticamente por el evento loadeddata
     });
 
     // Agregar control de reproducción
     const playBtn = document.getElementById('playBtn');
-    
-
     video.addEventListener('ended', () => {
       playBtn.textContent = 'Play';
     });
-
     playBtn.addEventListener('click', () => {
       if (video.paused) {
         video.play();
@@ -95,7 +77,23 @@
         playBtn.textContent = 'Play';
       }
     });
+ 
+      //---------------- sliders y sus valores
+      const frameInput = document.getElementById('frameInterval');
+      let frameCount = 0;
+      const inThresholdSlider = document.getElementById('inThreshold');
+      const outThresholdSlider = document.getElementById('outThreshold');
+      const inThresholdValue = document.getElementById('inThresholdValue');
+      const outThresholdValue = document.getElementById('outThresholdValue');
 
+      inThresholdSlider.addEventListener('input', () => {
+        inThresholdValue.textContent = inThresholdSlider.value;
+      });
+
+      outThresholdSlider.addEventListener('input', () => {
+        outThresholdValue.textContent = outThresholdSlider.value;
+      });
+    // ----------- setea canvas para opencv
     function onOpenCvReady() {
       const video = document.getElementById('video');
       
@@ -103,11 +101,14 @@
       video.addEventListener('loadedmetadata', () => {
         const canvasOutput = document.getElementById('canvasOutput');
         const strobeCanvas = document.getElementById('strobeCanvas');
+        const backgroundCanvas = document.getElementById('backgroundCanvas');
         
         canvasOutput.width = video.videoWidth;
         canvasOutput.height = video.videoHeight;
         strobeCanvas.width = video.videoWidth;
         strobeCanvas.height = video.videoHeight;
+        backgroundCanvas.width = video.videoWidth;
+        backgroundCanvas.height = video.videoHeight;
       });
 
       video.addEventListener('play', () => {
@@ -116,30 +117,17 @@
     }
 
     function processVideo(video) {
-      const canvas = document.getElementById('canvasOutput');
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      const canvasOutput = document.getElementById('canvasOutput');
+      const OutputCtx = canvasOutput.getContext('2d', { willReadFrequently: true });
       
       const strobeCanvas = document.getElementById('strobeCanvas');
       const strobeCtx = strobeCanvas.getContext('2d');
 
-      const frameInput = document.getElementById('frameInterval');
-      let frameCount = 0;
+      const backgroundCanvas = document.getElementById('backgroundCanvas');
+      const backgroundCtx = backgroundCanvas.getContext('2d');
 
-      // Obtener referencias a los sliders y sus valores
-      const inThresholdSlider = document.getElementById('inThreshold');
-      const outThresholdSlider = document.getElementById('outThreshold');
-      const inThresholdValue = document.getElementById('inThresholdValue');
-      const outThresholdValue = document.getElementById('outThresholdValue');
 
-      // Actualizar valores mostrados cuando cambien los sliders
-      inThresholdSlider.addEventListener('input', () => {
-        inThresholdValue.textContent = inThresholdSlider.value;
-      });
-
-      outThresholdSlider.addEventListener('input', () => {
-        outThresholdValue.textContent = outThresholdSlider.value;
-      });
-
+      //---------------- opencv vars
       let src = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
       let gray = new cv.Mat();
       let grayPrev = new cv.Mat();
@@ -147,39 +135,39 @@
       let mask = new cv.Mat();
       let kernel = cv.Mat.ones(3, 3, cv.CV_8U);
       let maskRGBA = new cv.Mat();
-      let inThreshold = 10
-      let outThreshold = 200;
+      let output = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4, new cv.Scalar(0,0,0,0));
 
-      let background = null;
-      
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      background = cv.imread(canvas);
    
 
       function updateFrame() {
         if (video.paused || video.ended) {
 
+        // background = new cv.Mat();
+        // src.copyTo(background);
 
-        background = new cv.Mat();
-        src.copyTo(background);
-
-
-          src.delete(); gray.delete(); grayPrev.delete();
-          diff.delete(); mask.delete(); kernel.delete(); maskRGBA.delete();
-
-
+        src.delete(); gray.delete(); grayPrev.delete();
+        diff.delete(); mask.delete(); kernel.delete(); maskRGBA.delete();
+        
+        console.log('finish')
           return;
         }
 
-        ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-        let imageData = ctx.getImageData(0, 0, video.videoWidth, video.videoHeight);
+        // datos de cada imagen
+        OutputCtx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+        let imageData = OutputCtx.getImageData(0, 0, video.videoWidth, video.videoHeight);
         src.data.set(imageData.data);
+        // lo convierte en gray
         cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+        
 
         if (!grayPrev.empty()) {
+          // calcula diff
           cv.absdiff(gray, grayPrev, diff);
+          // aplica umbrales y crea mask
           cv.threshold(diff, mask, parseInt(inThresholdSlider.value), parseInt(outThresholdSlider.value), cv.THRESH_BINARY);
-          cv.morphologyEx(mask, mask, cv.MORPH_OPEN, kernel);
+          // aplica morfologicas 
+          cv.morphologyEx(mask, mask, cv.MORPH_OPEN, kernel); 
+          // pinta en el canvas canvasOutput la mascara
           cv.imshow('canvasOutput', mask);
 
           frameCount++;
@@ -188,56 +176,54 @@
           if (frameCount % frameInterval === 0) {
             // Convertimos la máscara a RGBA para superponer
             cv.cvtColor(mask, maskRGBA, cv.COLOR_GRAY2RGBA);
-
-            // Dibujamos sobre el canvas final como una estampa
-            let tempCanvas = document.createElement('canvas');
-            tempCanvas.width = video.videoWidth;
-            tempCanvas.height = video.videoHeight;
-            let tempCtx = tempCanvas.getContext('2d');
-            cv.imshow(tempCanvas, mask);
-
+            
             let result = new cv.Mat();
             let rgbaPlanes = new cv.MatVector();
             let rgb = new cv.Mat();
 
             // Separar los canales RGB
             cv.cvtColor(src, rgb, cv.COLOR_RGBA2RGB);
+            // Separar los canales RGB
             cv.split(rgb, rgbaPlanes); // R, G, B
-
-			cv.bitwise_not(mask, mask);
-
+            // Invertir la máscara para que el movimiento sea blanco
+			      cv.bitwise_not(mask, mask);
             // Agregar canal alfa según la máscara
             rgbaPlanes.push_back(mask); // el blanco será opaco, negro será transparente
 
-            // Unir canales RGBA
             
+            // Unir canales RGBA
             cv.merge(rgbaPlanes, result);
+            
+            // Acumular result en output usando max
+            cv.max(output, result, output);
 
+            
 
-            // Mostrar el resultado
-            // cv.imshow(maskCanvas, mask);
+            let tempCanvas = document.createElement('canvas');
+            tempCanvas.width = video.videoWidth;
+            tempCanvas.height = video.videoHeight;
+            let tempCtx = tempCanvas.getContext('2d');
 
-            cv.imshow(tempCanvas, result);
-
-          
-
-
+            // Mostrar output en lugar de result
+            cv.imshow(tempCanvas, output);
+            
+            
 
             // Usamos "lighten" para mezclar los frames blancos (movimiento)
             // maskCtx.globalCompositeOperation = 'lighten';
             // maskCtx.drawImage(tempCanvas, 0, 0);
 
             // Establecer el modo de composición para superponer las imágenes
-            strobeCtx.globalCompositeOperation = 'source-over';
+            //  strobeCtx.globalCompositeOperation = 'source-over';
             
             // Ajustar la opacidad para cada frame
-            strobeCtx.globalAlpha = 0.5;
+            // strobeCtx.globalAlpha = 0.5;
             
             // Dibujar la imagen segmentada
             strobeCtx.drawImage(tempCanvas, 0, 0);
             
             // Restaurar la opacidad por defecto
-            strobeCtx.globalAlpha = 1.0;
+            // strobeCtx.globalAlpha = 1.0;
             
 
           // Liberar memoria
