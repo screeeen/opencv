@@ -9,8 +9,8 @@
 <body>
   <h2>strobocam</h2>
   <div class="video-upload-container">
-    <input type="file" id="videoInput" accept="video/*" class="video-input" />
-    <label for="videoInput" class="video-input-label">Seleccionar Video</label>
+    <input type="file" id="videoInput" accept="video/*" capture="library" class="video-input" />
+    <label for="videoInput" class="video-input-label">Seleccionar Video de la Galería</label>
   </div>
   <video id="video" muted poster="">
     <source src="video.mov" type="video/mp4">
@@ -204,6 +204,7 @@
             rgbaPlanes.push_back(mask); // el blanco será opaco, negro será transparente
 
             // Unir canales RGBA
+            
             cv.merge(rgbaPlanes, result);
 
 
@@ -212,10 +213,7 @@
 
             cv.imshow(tempCanvas, result);
 
-            // Liberar memoria
-            // src.delete(); gray.delete(); mask.delete(); kernel.delete();
-            // rgb.delete(); result.delete(); rgbaPlanes.delete();
-
+          
 
 
 
@@ -223,8 +221,23 @@
             // maskCtx.globalCompositeOperation = 'lighten';
             // maskCtx.drawImage(tempCanvas, 0, 0);
 
-            strobeCtx.globalCompositeOperation = 'xor';
+            // Establecer el modo de composición para superponer las imágenes
+            strobeCtx.globalCompositeOperation = 'source-over';
+            
+            // Ajustar la opacidad para cada frame
+            strobeCtx.globalAlpha = 0.5;
+            
+            // Dibujar la imagen segmentada
             strobeCtx.drawImage(tempCanvas, 0, 0);
+            
+            // Restaurar la opacidad por defecto
+            strobeCtx.globalAlpha = 1.0;
+            
+
+          // Liberar memoria
+            // src.delete(); gray.delete(); mask.delete(); kernel.delete();
+            // rgb.delete(); result.delete(); rgbaPlanes.delete();
+
           }
 
 
