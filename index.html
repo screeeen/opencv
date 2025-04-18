@@ -12,7 +12,7 @@
     <input type="file" id="videoInput" accept="video/*" class="video-input" />
     <label for="videoInput" class="video-input-label">Seleccionar Video</label>
   </div>
-  <video id="video" muted>
+  <video id="video" muted poster="">
     <source src="video.mov" type="video/mp4">
     Tu navegador no soporta video.
   </video>
@@ -29,13 +29,13 @@
 
     <div class="control-group">
       <label for="inThreshold">Umbral Inferior:</label>
-      <input type="range" id="inThreshold" min="1" max="50" value="10">
+      <input type="range" id="inThreshold" min="1" max="255" value="10">
       <span id="inThresholdValue" class="threshold-value">10</span>
     </div>
 
     <div class="control-group">
       <label for="outThreshold">Umbral Superior:</label>
-      <input type="range" id="outThreshold" min="100" max="255" value="200">
+      <input type="range" id="outThreshold" min="0" max="255" value="200">
       <span id="outThresholdValue" class="threshold-value">200</span>
     </div>
   </div>
@@ -60,11 +60,25 @@
       const file = e.target.files[0];
       const video = document.getElementById('video');
       video.src = URL.createObjectURL(file);
+      
+      // Generar vista previa cuando el video esté cargado
+      video.addEventListener('loadeddata', function() {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        video.poster = canvas.toDataURL();
+      });
     });
 
     // Agregar control de reproducción
     const playBtn = document.getElementById('playBtn');
     const video = document.getElementById('video');
+
+    video.addEventListener('ended', () => {
+      playBtn.textContent = 'Play';
+    });
 
     playBtn.addEventListener('click', () => {
       if (video.paused) {

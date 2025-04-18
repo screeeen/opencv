@@ -29,6 +29,45 @@ h2, h3 {
 
 .control-group {
   margin: 15px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+input[type="range"] {
+  width: 100%;
+  max-width: 300px;
+  height: 30px;
+  margin: 10px 0;
+  -webkit-appearance: none;
+  background: transparent;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 30px;
+  width: 30px;
+  border-radius: 50%;
+  background: #4CAF50;
+  cursor: pointer;
+  margin-top: -10px;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 10px;
+  background: #ddd;
+  border-radius: 5px;
+}
+
+.threshold-value {
+  display: block;
+  min-width: 40px;
+  text-align: center;
+  margin: 5px 0;
+  font-size: 16px;
+  font-weight: bold;
+  color: #4CAF50;
 }
 
 label {
