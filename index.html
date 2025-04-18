@@ -9,10 +9,10 @@
 <body>
   <h2>strobocam</h2>
   <div class="video-upload-container">
-    <input type="file" id="videoInput" accept="video/*" capture="library" class="video-input" />
+    <input type="file" id="videoInput" accept="video/*" class="video-input" />
     <label for="videoInput" class="video-input-label">Seleccionar Video de la Galería</label>
   </div>
-  <video id="video" muted poster="">
+  <video id="video" muted>
     <source src="video.mov" type="video/mp4">
     Tu navegador no soporta video.
   </video>
@@ -55,26 +55,32 @@
   <script async src="https://docs.opencv.org/4.7.0/opencv.js" onload="onOpenCvReady();"></script>
 
   <script>
+    const video = document.getElementById('video');
+
+    // Función para generar vista previa del primer frame
+    function generatePreview() {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      video.poster = canvas.toDataURL();
+    }
+
+    // Generar vista previa cuando el video predeterminado esté cargado
+    video.addEventListener('loadeddata', generatePreview);
+
     // Agregar el manejador de eventos para la carga de video
     document.getElementById('videoInput').addEventListener('change', function(e) {
       const file = e.target.files[0];
-      const video = document.getElementById('video');
       video.src = URL.createObjectURL(file);
       
-      // Generar vista previa cuando el video esté cargado
-      video.addEventListener('loadeddata', function() {
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        video.poster = canvas.toDataURL();
-      });
+      // La vista previa se generará automáticamente por el evento loadeddata
     });
 
     // Agregar control de reproducción
     const playBtn = document.getElementById('playBtn');
-    const video = document.getElementById('video');
+    
 
     video.addEventListener('ended', () => {
       playBtn.textContent = 'Play';
