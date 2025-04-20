@@ -130,6 +130,7 @@
 
       //---------------- opencv vars
       let src = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
+      let srcPrev = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
       let gray = new cv.Mat();
       let grayPrev = new cv.Mat();
       let diff = new cv.Mat();
@@ -137,7 +138,7 @@
       let maskPrev = new cv.Mat();
       let maskDiff = new cv.Mat();
       let kernel = cv.Mat.ones(3, 3, cv.CV_8U);
-      let maskRGBA = new cv.Mat();
+      // let maskRGBA = new cv.Mat();
       let output = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4, new cv.Scalar(0,0,0,0));
       let background = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
    
@@ -145,7 +146,7 @@
       function updateFrame() {
         if (video.paused || video.ended) {
         src.delete(); gray.delete(); grayPrev.delete();
-        diff.delete(); mask.delete(); kernel.delete(); maskRGBA.delete();
+        diff.delete(); mask.delete(); kernel.delete(); 
         maskPrev.delete(); maskDiff.delete();
         console.log('finish')
           return;
@@ -155,13 +156,12 @@
         OutputCtx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
         let imageData = OutputCtx.getImageData(0, 0, video.videoWidth, video.videoHeight);
         src.data.set(imageData.data);
+        
         // lo convierte en gray
         cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
         if (isBackgroundPainted === false) {
-          
           background.data.set(imageData.data);
           cv.imshow('backgroundCanvas', src);
-
           isBackgroundPainted = true;
         }
         
@@ -179,60 +179,53 @@
           frameCount++;
           let frameInterval = parseInt(frameInput.value, 10);
 
-          if (frameCount % frameInterval === 0) {
-            // Convertimos la máscara a RGBA para superponer
-            cv.cvtColor(mask, maskRGBA, cv.COLOR_GRAY2RGBA);
+          // if (frameCount % frameInterval === 0) {
+          if (true) {
+            // // Convertimos la máscara a RGBA para superponer
+            // cv.cvtColor(mask, maskRGBA, cv.COLOR_GRAY2RGBA);
             
-            // Calcular diferencia negativa entre máscaras
-            //  if (!maskPrev.empty()) {
-            //    cv.subtract(maskPrev, mask, maskDiff);
-            //    cv.threshold(maskDiff, maskDiff, 0, 255, cv.THRESH_BINARY);
-            //    cv.cvtColor(maskDiff, maskDiff, cv.COLOR_GRAY2RGBA);
-            //    cv.min(output, maskDiff, output);
-            //  }
-            //  mask.copyTo(maskPrev);
-            
+            // --------------------------
             let result = new cv.Mat();
             let rgbaPlanes = new cv.MatVector();
             let rgb = new cv.Mat();
 
             // Separar los canales RGB
-            cv.cvtColor(src, rgb, cv.COLOR_RGBA2RGB);
+            cv.cvtColor(srcPrev, rgb, cv.COLOR_RGBA2RGB);
             // Separar los canales RGB
             cv.split(rgb, rgbaPlanes); // R, G, B
             // Invertir la máscara para que el movimiento sea blanco
-			      cv.bitwise_not(mask, mask);
+			      // cv.bitwise_not(mask, mask);
             // Agregar canal alfa según la máscara
             rgbaPlanes.push_back(mask); // el blanco será opaco, negro será transparente
 
             // Unir canales RGBA
             cv.merge(rgbaPlanes, result);
-            
+          
             // Acumular result en output usando max
-            cv.max(output, result, output);
-
-            // cv.absdiff(output, background, background);
-            cv.imshow(backgroundCanvas, background);
-            
-            
+            // cv.max(output, result, output);
 
             let tempCanvas = document.createElement('canvas');
             tempCanvas.width = video.videoWidth;
             tempCanvas.height = video.videoHeight;
             let tempCtx = tempCanvas.getContext('2d');
 
+            
+            result.copyTo(background, mask)
+
             // Mostrar output en lugar de result
-            cv.imshow(tempCanvas, output);
-           
+            cv.imshow(tempCanvas, result);
+
             // Dibujar la imagen segmentada
             strobeCtx.drawImage(tempCanvas, 0, 0);
             
+            cv.imshow(backgroundCanvas, background);
             
           }
 
         }
 
         gray.copyTo(grayPrev);
+        src.copyTo(srcPrev)
         requestAnimationFrame(updateFrame);
       }
 
