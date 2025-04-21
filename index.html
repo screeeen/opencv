@@ -14,15 +14,15 @@
       <input type="file" id="videoInput" accept="video/*" style="display:none;" />
       <button id="videoUploadBtn" type="button">Seleccionar Video de la Galería</button>
     </div>
-    <video id="video" width="640" height="360" controls src="video.mov"></video>
+    <video id="video" width="640" height="360" src="video.mov"></video>
     <br>
     <button id="playPauseBtn">Play</button>
     <br><br>
     <div class="controls-container">
         <div class="control-group">
           <label for="cadenceSlider">Cadencia (ms entre frames):</label>
-          <input type="range" id="cadenceSlider" min="10" max="1000" value="33" step="1">
-          <span id="cadenceValue" class="threshold-value">33</span>
+          <input type="range" id="cadenceSlider" min="10" max="1000" value="130" step="1">
+          <span id="cadenceValue" class="threshold-value">130</span>
         </div>
 
         <div class="control-group">
@@ -56,7 +56,7 @@
 
         let cap, frame;
         let framesArray = [];  // Array para guardar los fotogramas
-        let cadence = 33;
+        let cadence = 130;
         const cadenceSlider = document.getElementById('cadenceSlider');
         const cadenceValue = document.getElementById('cadenceValue');
 
@@ -84,11 +84,11 @@
                         c.height = height;
                     });
                 };
-                videoElement.play();
+                
             } else {
                 videoElement.src = "video.mov";
                 videoElement.load();
-                videoElement.play();
+                
             }
         });
 
