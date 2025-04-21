@@ -14,7 +14,12 @@
       <input type="file" id="videoInput" accept="video/*" style="display:none;" />
       <button id="videoUploadBtn" type="button">Seleccionar Video de la Galería</button>
     </div>
-    <video id="video" width="640" height="360" src="video.mov"></video>
+
+    <video id="video" muted>
+        <source src="video.mov" type="video/mp4">
+        Tu navegador no soporta video.
+    </video>
+
     <br>
     <button id="playPauseBtn">Play</button>
     <br><br>
@@ -60,9 +65,27 @@
         const cadenceSlider = document.getElementById('cadenceSlider');
         const cadenceValue = document.getElementById('cadenceValue');
 
+        videoElement.addEventListener('loadedmetadata', () => {
+            const canvas = document.getElementById('canvas');
+            const canvasOutput = document.getElementById('canvasOutput');
+            const strobeCanvas = document.getElementById('strobeCanvas');
+            const backgroundCanvas = document.getElementById('backgroundCanvas');
+
+            videoElement.height = videoElement.videoHeight;
+            videoElement.width = videoElement.videoWidth;
+
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+            canvasOutput.height = videoElement.videoHeight;
+            strobeCanvas.width = videoElement.videoWidth;
+            strobeCanvas.height = videoElement.videoHeight;
+            backgroundCanvas.width = videoElement.videoWidth;
+            backgroundCanvas.height = videoElement.videoHeight;
+      });   
+
         // Cuando OpenCV está listo, esta función se ejecuta
         const onOpenCvReady = () => {
-            console.log("OpenCV.js está listo");          
+            console.log("OpenCV.js está listo");       
         };
 
         // Cuando el usuario carga un video
@@ -102,7 +125,10 @@
             }
 
             cap = new cv.VideoCapture(videoElement);
-            let frame = new cv.Mat(videoElement.height, videoElement.width, cv.CV_8UC4);
+            videoElement.height = videoElement.videoHeight;
+            videoElement.width = videoElement.videoWidth;
+            let frame = new cv.Mat(videoElement.videoHeight, videoElement.videoWidth, cv.CV_8UC4);
+            console.log('frameee',frame.rows, frame.cols, frame.type(), frame.channels())
             cap.read(frame);
             // Clonamos el frame para guardarlo sin que lo sobrescriba el siguiente
             framesArray.push(frame.clone());
@@ -127,8 +153,11 @@
             const backgroundCtx = backgroundCanvas.getContext('2d');
             let isBackgroundPainted = false
 
+            videoElement.height = videoElement.videoHeight;
+            videoElement.width = videoElement.videoWidth;
+
             // let frame = new cv.Mat(frame.height, video.width, cv.CV_8UC4);
-            let framePrev = new cv.Mat(video.height, video.width, cv.CV_8UC4);
+            let framePrev = new cv.Mat(videoElement.height, videoElement.width, cv.CV_8UC4);
             let gray = new cv.Mat();
             let grayPrev = new cv.Mat();
             let diff = new cv.Mat();
@@ -136,14 +165,12 @@
             let maskPrev = new cv.Mat();
             let maskDiff = new cv.Mat();
             let kernel = cv.Mat.ones(3, 3, cv.CV_8U);
-            // let maskRGBA = new cv.Mat();
-            let output = new cv.Mat(video.height, video.width, cv.CV_8UC4, new cv.Scalar(0,0,0,0));
-            let background = new cv.Mat(video.height, video.width, cv.CV_8UC4);
+            let output = new cv.Mat(videoElement.height, videoElement.width, cv.CV_8UC4, new cv.Scalar(0,0,0,0));
+            let background = new cv.Mat(videoElement.height, videoElement.width, cv.CV_8UC4);
 
             framesArray.map((frame, i) => {
 
                 if (i === framesArray.length - 1) {
-
                     frame.delete(); gray.delete(); grayPrev.delete();
                     diff.delete(); mask.delete(); kernel.delete();
                     maskPrev.delete(); maskDiff.delete(); framePrev.delete();
@@ -152,18 +179,13 @@
                     return;
                 }
 
-                // datos de cada imagen
-                // OutputCtx.drawImage(frame, 0, 0, frame.width, frame.height);
-                // let imageData = OutputCtx.getImageData(0, 0, video.width, video.height);
-                // frame.data.set(imageData.data);
                 // lo convierte en gray
                 cv.cvtColor(frame, gray, cv.COLOR_RGBA2GRAY);
-                
                 
                 if (isBackgroundPainted === false) {
                     // cv.cvtColor(frame, background, cv.COLOR_RGBA2RGB);
                     frame.copyTo(background);
-                    cv.imshow('canvas', background);
+                    cv.imshow(canvas, background);
                     isBackgroundPainted = true;
                 }
                 
@@ -200,7 +222,7 @@
                     // Mostrar output en lugar de result
                     cv.imshow(tempCanvas, result);
                     // Dibujar la imagen segmentada
-                     strobeCtx.drawImage(tempCanvas, 0, 0);
+                    strobeCtx.drawImage(tempCanvas, 0, 0);
                     
                     result.copyTo(background, mask);
                     cv.imshow(backgroundCanvas, background);    
