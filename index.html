@@ -1,261 +1,238 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="prefetch" href="https://docs.opencv.org/4.7.0/opencv.js" as="script">
-
-  <title>strobocam</title>
-  <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="prefetch" href="https://docs.opencv.org/4.7.0/opencv.js" as="script">
+    <link rel="stylesheet" href="styles-mobile.css">
+    <title>Extraer Frames con OpenCV.js</title>
 </head>
 <body>
-  <h2>strobocam</h2>
-  <div class="video-upload-container">
-    <input type="file" id="videoInput" accept="video/*" class="video-input" />
-    <label for="videoInput" class="video-input-label">Seleccionar Video de la Galería</label>
-  </div>
-  <video id="video" muted>
-    <source src="video.mov" type="video/mp4">
-    Tu navegador no soporta video.
-  </video>
-
-
-
-  <div class="controls-container">
-    <div class="control-group">
-      <label for="frameInterval">Guardar cada X frames:</label>
-      <input type="number" id="frameInterval" value="6" min="1" />
+    <script async src="https://docs.opencv.org/4.7.0/opencv.js" onload="onOpenCvReady();"></script>
+    <h1>Extraer Frames de un Video</h1>
+    <div style="text-align:center; margin: 1rem 0;">
+      <input type="file" id="videoInput" accept="video/*" style="display:none;" />
+      <button id="videoUploadBtn" type="button">Seleccionar Video de la Galería</button>
     </div>
+    <video id="video" width="640" height="360" controls src="video.mov"></video>
+    <br>
+    <button id="playPauseBtn">Play</button>
+    <br><br>
+    <div class="controls-container">
+        <div class="control-group">
+          <label for="cadenceSlider">Cadencia (ms entre frames):</label>
+          <input type="range" id="cadenceSlider" min="10" max="1000" value="33" step="1">
+          <span id="cadenceValue" class="threshold-value">33</span>
+        </div>
 
-    <div class="control-group">
-      <label for="inThreshold">Umbral Inferior:</label>
-      <input type="range" id="inThreshold" min="1" max="255" value="10">
-      <span id="inThresholdValue" class="threshold-value">10</span>
-    </div>
+        <div class="control-group">
+          <label for="inThreshold">Umbral Inferior:</label>
+          <input type="range" id="inThreshold" min="1" max="255" value="10">
+          <span id="inThresholdValue" class="threshold-value">10</span>
+        </div>
+    
+        <div class="control-group">
+          <label for="outThreshold">Umbral Superior:</label>
+          <input type="range" id="outThreshold" min="0" max="255" value="200">
+          <span id="outThresholdValue" class="threshold-value">200</span>
+        </div>
+      </div>
+    <canvas id="canvas" width="640" height="360"></canvas>
+    <canvas id="canvasOutput" width="640" height="360"></canvas>
+    <canvas id="strobeCanvas" width="640" height="360"></canvas>
+    <canvas id="backgroundCanvas" width="640" height="360"></canvas>
 
-    <div class="control-group">
-      <label for="outThreshold">Umbral Superior:</label>
-      <input type="range" id="outThreshold" min="0" max="255" value="200">
-      <span id="outThresholdValue" class="threshold-value">200</span>
-    </div>
-  </div>
+    <script type="text/javascript">
+        let videoElement = document.getElementById('video');
+        let canvasElement = document.getElementById('canvas');
+        let context = canvasElement.getContext('2d');
+        let videoInput = document.getElementById('videoInput');
+        let playPauseBtn = document.getElementById('playPauseBtn');
+        let videoUploadBtn = document.getElementById('videoUploadBtn');
+        const inThresholdSlider = document.getElementById('inThreshold');
+        const outThresholdSlider = document.getElementById('outThreshold');
+        const inThresholdValue = document.getElementById('inThresholdValue');
+        const outThresholdValue = document.getElementById('outThresholdValue');
 
-  <div class="controls-container">
-    <button id="playBtn" class="download-btn">Play</button>
-  </div>
-  
-  <canvas id="canvasOutput"></canvas>
-  <canvas id="strobeCanvas"></canvas>
-  <canvas id="backgroundCanvas"></canvas>
-  
-  <div class="controls-container">
-    <button id="downloadBtn" class="download-btn">Descargar Imagen Estroboscópica</button>
-    <button id="resetBtn" class="download-btn">Reiniciar</button>
-  </div>
+        let cap, frame;
+        let framesArray = [];  // Array para guardar los fotogramas
+        let cadence = 33;
+        const cadenceSlider = document.getElementById('cadenceSlider');
+        const cadenceValue = document.getElementById('cadenceValue');
 
-  <!-- OpenCV.js -->
-  <script async src="https://docs.opencv.org/4.7.0/opencv.js" onload="onOpenCvReady();"></script>
+        // Cuando OpenCV está listo, esta función se ejecuta
+        const onOpenCvReady = () => {
+            console.log("OpenCV.js está listo");          
+        };
 
-  <script>
-    const video = document.getElementById('video');
-    let isBackgroundPainted = false
+        // Cuando el usuario carga un video
+        videoUploadBtn.addEventListener('click', () => {
+            videoInput.click();
+        });
+        videoInput.addEventListener('change', (event) => {
+            let file = event.target.files[0];
+            if (file) {
+                let url = URL.createObjectURL(file);
+                videoElement.src = url;
+                videoElement.load();
+                videoElement.play();
+            } else {
+                videoElement.src = "video.mov";
+                videoElement.load();
+                videoElement.play();
+            }
+        });
 
-    // Agregar el manejador de eventos para la carga de video
-    document.getElementById('videoInput').addEventListener('change', function(e) {
-      const file = e.target.files[0];
-      video.src = URL.createObjectURL(file);
-      isBackgroundPainted = false
-    });
+        // Función para extraer los frames del video
+        const extractFrames = () => {
+            if (videoElement.paused || videoElement.ended) {
+                console.log("Fin del video. Total de frames:", framesArray.length);
+                processFrames();
+                console.log(framesArray);
+                return;
+            }
 
-    // Agregar control de reproducción
-    const playBtn = document.getElementById('playBtn');
-    video.addEventListener('ended', () => {
-      playBtn.textContent = 'Play';
-    });
-    playBtn.addEventListener('click', () => {
-      if (video.paused) {
-        video.play();
-        playBtn.textContent = 'Pause';
-      } else {
-        video.pause();
-        playBtn.textContent = 'Play';
-      }
-    });
- 
-      //---------------- sliders y sus valores
-      const frameInput = document.getElementById('frameInterval');
-      let frameCount = 0;
-      const inThresholdSlider = document.getElementById('inThreshold');
-      const outThresholdSlider = document.getElementById('outThreshold');
-      const inThresholdValue = document.getElementById('inThresholdValue');
-      const outThresholdValue = document.getElementById('outThresholdValue');
+            cap = new cv.VideoCapture(videoElement);
+            let frame = new cv.Mat(videoElement.height, videoElement.width, cv.CV_8UC4);
+            cap.read(frame);
+            // Clonamos el frame para guardarlo sin que lo sobrescriba el siguiente
+            framesArray.push(frame.clone());
+            frame.delete();  // Liberamos el original
+            setTimeout(extractFrames, cadence); // ~30 FPS
+        };
 
-      inThresholdSlider.addEventListener('input', () => {
+        // Empieza a extraer los frames cuando el video está listo
+        videoElement.onplay = () => {
+            extractFrames();
+        };
+
+        const processFrames = () => {
+            const canvas = document.getElementById('canvasOutput');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+            const canvasOutput = document.getElementById('canvasOutput');
+            const OutputCtx = canvasOutput.getContext('2d', { willReadFrequently: true });
+            const strobeCanvas = document.getElementById('strobeCanvas');
+            const strobeCtx = strobeCanvas.getContext('2d');
+            const backgroundCanvas = document.getElementById('backgroundCanvas');
+            const backgroundCtx = backgroundCanvas.getContext('2d');
+            let isBackgroundPainted = false
+
+            // let frame = new cv.Mat(frame.height, video.width, cv.CV_8UC4);
+            let framePrev = new cv.Mat(video.height, video.width, cv.CV_8UC4);
+            let gray = new cv.Mat();
+            let grayPrev = new cv.Mat();
+            let diff = new cv.Mat();
+            let mask = new cv.Mat();
+            let maskPrev = new cv.Mat();
+            let maskDiff = new cv.Mat();
+            let kernel = cv.Mat.ones(3, 3, cv.CV_8U);
+            // let maskRGBA = new cv.Mat();
+            let output = new cv.Mat(video.height, video.width, cv.CV_8UC4, new cv.Scalar(0,0,0,0));
+            let background = new cv.Mat(video.height, video.width, cv.CV_8UC4);
+
+            framesArray.map((frame, i) => {
+
+                if (i === framesArray.length - 1) {
+
+                    frame.delete(); gray.delete(); grayPrev.delete();
+                    diff.delete(); mask.delete(); kernel.delete();
+                    maskPrev.delete(); maskDiff.delete(); framePrev.delete();
+                    output.delete(); background.delete();       
+                    console.log('finish');
+                    return;
+                }
+
+                // datos de cada imagen
+                // OutputCtx.drawImage(frame, 0, 0, frame.width, frame.height);
+                // let imageData = OutputCtx.getImageData(0, 0, video.width, video.height);
+                // frame.data.set(imageData.data);
+                // lo convierte en gray
+                cv.cvtColor(frame, gray, cv.COLOR_RGBA2GRAY);
+                
+                
+                if (isBackgroundPainted === false) {
+                    // cv.cvtColor(frame, background, cv.COLOR_RGBA2RGB);
+                    frame.copyTo(background);
+                    cv.imshow('canvas', background);
+                    isBackgroundPainted = true;
+                }
+                
+                if (!grayPrev.empty()) {
+                    console.log(i, ':', frame);
+                    // calcula diff
+                    cv.absdiff(gray, grayPrev, diff);
+                    // aplica umbrales y crea mask
+                    cv.threshold(diff, mask, parseInt(inThresholdSlider.value), parseInt(outThresholdSlider.value), cv.THRESH_BINARY);
+                    // aplica morfologicas
+                    cv.morphologyEx(mask, mask, cv.MORPH_OPEN, kernel);
+                    // pinta en el canvas canvasOutput la mascara
+                    cv.imshow('canvasOutput', mask);
+                    // --------------------------
+                    let result = new cv.Mat();
+                    let rgbaPlanes = new cv.MatVector();
+                    let rgb = new cv.Mat();
+                    // Separar los canales RGB
+                    cv.cvtColor(framePrev, rgb, cv.COLOR_RGBA2RGB);
+                    // Separar los canales RGB
+                    cv.split(rgb, rgbaPlanes); // R, G, B
+                    // Invertir la máscara para que el movimiento sea blanco
+                    // cv.bitwise_not(mask, mask);
+                    // Agregar canal alfa según la máscara
+                    rgbaPlanes.push_back(mask); // el blanco será opaco, negro será transparente
+                    // Unir canales RGBA
+                    cv.merge(rgbaPlanes, result);
+                    // Acumular result en output usando max
+                    // cv.max(output, result, output);
+                    let tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = frame.width;
+                    tempCanvas.height = frame.height;
+                    let tempCtx = tempCanvas.getContext('2d');
+                    // Mostrar output en lugar de result
+                    cv.imshow(tempCanvas, result);
+                    // Dibujar la imagen segmentada
+                     strobeCtx.drawImage(tempCanvas, 0, 0);
+                    
+                    result.copyTo(background, mask);
+                    cv.imshow(backgroundCanvas, background);    
+                }
+
+                if (i !== framesArray.length - 1) {
+                    gray.copyTo(grayPrev);
+                    frame.copyTo(framePrev);
+                }
+
+            });
+            
+        };
+
+
+        // Botón Play/Pause para el video
+        playPauseBtn.addEventListener('click', function() {
+            if (videoElement.paused) {
+                videoElement.play();
+                playPauseBtn.textContent = 'Pause';
+            } else {
+                videoElement.pause();
+                playPauseBtn.textContent = 'Play';
+            }
+        });
+        videoElement.addEventListener('play', function() {
+            playPauseBtn.textContent = 'Pause';
+        });
+        videoElement.addEventListener('pause', function() {
+            playPauseBtn.textContent = 'Play';
+        });
+        inThresholdSlider.addEventListener('input', () => {
         inThresholdValue.textContent = inThresholdSlider.value;
       });
-
-      outThresholdSlider.addEventListener('input', () => {
+        outThresholdSlider.addEventListener('input', () => {
         outThresholdValue.textContent = outThresholdSlider.value;
       });
-    // ----------- setea canvas para opencv
-    function onOpenCvReady() {
-      const video = document.getElementById('video');
-      // Actualizar dimensiones de los canvas cuando se carga el video
-      video.addEventListener('loadedmetadata', () => {
-        const canvasOutput = document.getElementById('canvasOutput');
-        const strobeCanvas = document.getElementById('strobeCanvas');
-        const backgroundCanvas = document.getElementById('backgroundCanvas');
-        
-        canvasOutput.width = video.videoWidth;
-        canvasOutput.height = video.videoHeight;
-        strobeCanvas.width = video.videoWidth;
-        strobeCanvas.height = video.videoHeight;
-        backgroundCanvas.width = video.videoWidth;
-        backgroundCanvas.height = video.videoHeight;
-      });
-
-      video.addEventListener('play', () => {
-        processVideo(video);
-      });
-    }
-
-    function processVideo(video) {
-      const canvasOutput = document.getElementById('canvasOutput');
-      const OutputCtx = canvasOutput.getContext('2d', { willReadFrequently: true });
-      
-      const strobeCanvas = document.getElementById('strobeCanvas');
-      const strobeCtx = strobeCanvas.getContext('2d');
-
-      const backgroundCanvas = document.getElementById('backgroundCanvas');
-      const backgroundCtx = backgroundCanvas.getContext('2d');
-
-
-      //---------------- opencv vars
-      let src = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
-      let srcPrev = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
-      let gray = new cv.Mat();
-      let grayPrev = new cv.Mat();
-      let diff = new cv.Mat();
-      let mask = new cv.Mat();
-      let maskPrev = new cv.Mat();
-      let maskDiff = new cv.Mat();
-      let kernel = cv.Mat.ones(3, 3, cv.CV_8U);
-      // let maskRGBA = new cv.Mat();
-      let output = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4, new cv.Scalar(0,0,0,0));
-      let background = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
-   
-
-      function updateFrame() {
-        if (video.paused || video.ended) {
-        src.delete(); gray.delete(); grayPrev.delete();
-        diff.delete(); mask.delete(); kernel.delete(); 
-        maskPrev.delete(); maskDiff.delete();
-        console.log('finish')
-          return;
-        }
-
-        // datos de cada imagen
-        OutputCtx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-        let imageData = OutputCtx.getImageData(0, 0, video.videoWidth, video.videoHeight);
-        src.data.set(imageData.data);
-        
-        // lo convierte en gray
-        cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-        if (isBackgroundPainted === false) {
-          background.data.set(imageData.data);
-          cv.imshow('backgroundCanvas', src);
-          isBackgroundPainted = true;
-        }
-        
-
-        if (!grayPrev.empty()) {
-          // calcula diff
-          cv.absdiff(gray, grayPrev, diff);
-          // aplica umbrales y crea mask
-          cv.threshold(diff, mask, parseInt(inThresholdSlider.value), parseInt(outThresholdSlider.value), cv.THRESH_BINARY);
-          // aplica morfologicas 
-          cv.morphologyEx(mask, mask, cv.MORPH_OPEN, kernel); 
-          // pinta en el canvas canvasOutput la mascara
-          cv.imshow('canvasOutput', mask);
-
-          frameCount++;
-          let frameInterval = parseInt(frameInput.value, 10);
-
-          // if (frameCount % frameInterval === 0) {
-          if (true) {
-            // // Convertimos la máscara a RGBA para superponer
-            // cv.cvtColor(mask, maskRGBA, cv.COLOR_GRAY2RGBA);
-            
-            // --------------------------
-            let result = new cv.Mat();
-            let rgbaPlanes = new cv.MatVector();
-            let rgb = new cv.Mat();
-
-            // Separar los canales RGB
-            cv.cvtColor(src, rgb, cv.COLOR_RGBA2RGB);
-            // Separar los canales RGB
-            cv.split(rgb, rgbaPlanes); // R, G, B
-            // Invertir la máscara para que el movimiento sea blanco
-			      // cv.bitwise_not(mask, mask);
-            // Agregar canal alfa según la máscara
-            rgbaPlanes.push_back(mask); // el blanco será opaco, negro será transparente
-
-            // Unir canales RGBA
-            cv.merge(rgbaPlanes, result);
-          
-            // Acumular result en output usando max
-            // cv.max(output, result, output);
-
-            let tempCanvas = document.createElement('canvas');
-            tempCanvas.width = video.videoWidth;
-            tempCanvas.height = video.videoHeight;
-            let tempCtx = tempCanvas.getContext('2d');
-
-            
-            result.copyTo(background, mask)
-
-            // Mostrar output en lugar de result
-            cv.imshow(tempCanvas, result);
-
-            // Dibujar la imagen segmentada
-            strobeCtx.drawImage(tempCanvas, 0, 0);
-            
-            cv.imshow(backgroundCanvas, background);
-            
-          }
-
-        }
-
-        gray.copyTo(grayPrev);
-        src.copyTo(srcPrev)
-        requestAnimationFrame(updateFrame);
-      }
-
-
-      requestAnimationFrame(updateFrame);
-    }
-
-    // Función para descargar la imagen estroboscópica
-    document.getElementById('downloadBtn').addEventListener('click', () => {
-      const strobeCanvas = document.getElementById('strobeCanvas');
-      const link = document.createElement('a');
-      link.download = 'imagen_estroboscopica.png';
-      link.href = strobeCanvas.toDataURL('image/png');
-      link.click();
-    });
-
-    // Función para reiniciar la aplicación
-    document.getElementById('resetBtn').addEventListener('click', () => {
-      const strobeCanvas = document.getElementById('strobeCanvas');
-      const strobeCtx = strobeCanvas.getContext('2d');
-      strobeCtx.clearRect(0, 0, strobeCanvas.width, strobeCanvas.height);
-      frameCount = 0;
-      
-      // Reiniciar el video
-      video.pause();
-      video.currentTime = 0;
-      playBtn.textContent = 'Play';
-    });
-  </script>
+        cadenceSlider.addEventListener('input', () => {
+          cadence = parseInt(cadenceSlider.value);
+          cadenceValue.textContent = cadenceSlider.value;
+        });
+   </script>
 </body>
 </html>
