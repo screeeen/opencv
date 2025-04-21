@@ -75,6 +75,15 @@
                 let url = URL.createObjectURL(file);
                 videoElement.src = url;
                 videoElement.load();
+                videoElement.onloadedmetadata = function() {
+                    const width = videoElement.videoWidth;
+                    const height = videoElement.videoHeight;
+                    ["canvas","canvasOutput","strobeCanvas","backgroundCanvas"].forEach(id => {
+                        const c = document.getElementById(id);
+                        c.width = width;
+                        c.height = height;
+                    });
+                };
                 videoElement.play();
             } else {
                 videoElement.src = "video.mov";
