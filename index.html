@@ -255,28 +255,30 @@
         videoElement.addEventListener('pause', function() {
             playPauseBtn.textContent = 'Play';
         });
-        inThresholdSlider.addEventListener('input', () => {
+        inThresholdSlider.addEventListener('change', () => {
         inThresholdValue.textContent = inThresholdSlider.value;
-      });
-        outThresholdSlider.addEventListener('input', () => {
-        outThresholdValue.textContent = outThresholdSlider.value;
-      });
-        cadenceSlider.addEventListener('input', () => {
-          cadence = parseInt(cadenceSlider.value);
-          cadenceValue.textContent = cadenceSlider.value;
+        processFrames();
         });
-    // Botón para descargar la imagen del backgroundCanvas
-    const downloadBackgroundBtn = document.getElementById('downloadBackgroundBtn');
-    downloadBackgroundBtn.addEventListener('click', function() {
-      const backgroundCanvas = document.getElementById('backgroundCanvas');
-      const image = backgroundCanvas.toDataURL('image/png');
-      const link = document.createElement('a');
-      link.href = image;
-      link.download = 'background_final.png';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    });
-   </script>
+            outThresholdSlider.addEventListener('change', () => {
+            outThresholdValue.textContent = outThresholdSlider.value;
+            processFrames();
+            });
+                cadenceSlider.addEventListener('input', () => {
+                cadence = parseInt(cadenceSlider.value);
+                cadenceValue.textContent = cadenceSlider.value;
+                });
+        // Botón para descargar la imagen del backgroundCanvas
+        const downloadBackgroundBtn = document.getElementById('downloadBackgroundBtn');
+        downloadBackgroundBtn.addEventListener('click', function() {
+        const backgroundCanvas = document.getElementById('backgroundCanvas');
+        const image = backgroundCanvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.href = image;
+        link.download = 'background_final.png';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        });
+       </script>
 </body>
 </html>
