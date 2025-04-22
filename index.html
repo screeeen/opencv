@@ -20,9 +20,6 @@
         Tu navegador no soporta video.
     </video>
 
-    <br>
-    <button id="playPauseBtn">Play</button>
-    <br><br>
     <div class="controls-container">
         <div class="control-group">
           <label for="cadenceSlider">Cadencia (ms entre frames):</label>
@@ -42,11 +39,15 @@
           <span id="outThresholdValue" class="threshold-value">200</span>
         </div>
       </div>
+
+      <button id="playPauseBtn">Play</button>
     <canvas id="canvas" width="640" height="360"></canvas>
     <canvas id="canvasOutput" width="640" height="360"></canvas>
     <canvas id="strobeCanvas" width="640" height="360"></canvas>
     <canvas id="backgroundCanvas" width="640" height="360"></canvas>
-
+    <div style="text-align:center; margin: 2rem 0;">
+      <button id="downloadBackgroundBtn" type="button" class="download-btn">Descargar Imagen Final</button>
+    </div>
     <script type="text/javascript">
         let videoElement = document.getElementById('video');
         let canvasElement = document.getElementById('canvas');
@@ -128,7 +129,6 @@
             videoElement.height = videoElement.videoHeight;
             videoElement.width = videoElement.videoWidth;
             let frame = new cv.Mat(videoElement.videoHeight, videoElement.videoWidth, cv.CV_8UC4);
-            console.log('frameee',frame.rows, frame.cols, frame.type(), frame.channels())
             cap.read(frame);
             // Clonamos el frame para guardarlo sin que lo sobrescriba el siguiente
             framesArray.push(frame.clone());
@@ -142,15 +142,15 @@
         };
 
         const processFrames = () => {
-            const canvas = document.getElementById('canvasOutput');
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            const canvas = document.getElementById('canvas');
+            // const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
             const canvasOutput = document.getElementById('canvasOutput');
-            const OutputCtx = canvasOutput.getContext('2d', { willReadFrequently: true });
+            // const OutputCtx = canvasOutput.getContext('2d', { willReadFrequently: true });
             const strobeCanvas = document.getElementById('strobeCanvas');
             const strobeCtx = strobeCanvas.getContext('2d');
             const backgroundCanvas = document.getElementById('backgroundCanvas');
-            const backgroundCtx = backgroundCanvas.getContext('2d');
+            // const backgroundCtx = backgroundCanvas.getContext('2d');
             let isBackgroundPainted = false
 
             videoElement.height = videoElement.videoHeight;
@@ -190,6 +190,7 @@
                 }
                 
                 if (!grayPrev.empty()) {
+
                     console.log(i, ':', frame);
                     // calcula diff
                     cv.absdiff(gray, grayPrev, diff);
@@ -264,6 +265,18 @@
           cadence = parseInt(cadenceSlider.value);
           cadenceValue.textContent = cadenceSlider.value;
         });
+    // Botón para descargar la imagen del backgroundCanvas
+    const downloadBackgroundBtn = document.getElementById('downloadBackgroundBtn');
+    downloadBackgroundBtn.addEventListener('click', function() {
+      const backgroundCanvas = document.getElementById('backgroundCanvas');
+      const image = backgroundCanvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.href = image;
+      link.download = 'background_final.png';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
    </script>
 </body>
 </html>
