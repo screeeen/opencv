@@ -19,39 +19,42 @@
         <source src="video.mov" type="video/mp4">
         Tu navegador no soporta video.
     </video>
+    <div id="totalFramesContainer" style="text-align:center; margin:0.5rem 0; font-size:1.1em; color:#333;">
+    </div>
 
     <div class="controls-container">
         <div class="control-group">
           <label for="cadenceSlider">Cadencia (ms entre frames):</label>
           <input type="range" id="cadenceSlider" min="10" max="1000" value="130" step="1">
-          <span id="cadenceValue" class="threshold-value">130</span>
         </div>
 
-        <div class="control-group">
-          <label for="inThreshold">Umbral Inferior:</label>
-          <input type="range" id="inThreshold" min="1" max="255" value="10">
-          <span id="inThresholdValue" class="threshold-value">10</span>
-        </div>
-    
-        <div class="control-group">
-          <label for="outThreshold">Umbral Superior:</label>
-          <input type="range" id="outThreshold" min="0" max="255" value="200">
-          <span id="outThresholdValue" class="threshold-value">200</span>
-        </div>
-      </div>
+
 
       <button id="playPauseBtn">Play</button>
-    <canvas id="canvas" width="640" height="360"></canvas>
-    <canvas id="canvasOutput" width="640" height="360"></canvas>
-    <canvas id="strobeCanvas" width="640" height="360"></canvas>
+    <canvas id="canvas" width="640" height="360" style="display:none;"></canvas>
+    <canvas id="canvasOutput" width="640" height="360" style="display:none;"></canvas>
+    <canvas id="strobeCanvas" width="640" height="360" style="display:none;"></canvas>
     <canvas id="backgroundCanvas" width="640" height="360"></canvas>
+    <div class="control-group">
+        <label for="inThreshold">Umbral Inferior:</label>
+        <input type="range" id="inThreshold" min="1" max="255" value="10">
+        <span id="inThresholdValue" class="threshold-value">10</span>
+      </div>
+  
+      <div class="control-group">
+        <label for="outThreshold">Umbral Superior:</label>
+        <input type="range" id="outThreshold" min="0" max="255" value="200">
+        <span id="outThresholdValue" class="threshold-value">200</span>
+      </div>
+    </div>
     <div style="text-align:center; margin: 2rem 0;">
       <button id="downloadBackgroundBtn" type="button" class="download-btn">Descargar Imagen Final</button>
+      <button id="resetAppBtn" type="button" class="download-btn">Reset</button>
     </div>
     <script type="text/javascript">
         let videoElement = document.getElementById('video');
         let canvasElement = document.getElementById('canvas');
-        let context = canvasElement.getContext('2d');
+        let context = canvasElement.getContext('2d', { willReadFrequently: true });
         let videoInput = document.getElementById('videoInput');
         let playPauseBtn = document.getElementById('playPauseBtn');
         let videoUploadBtn = document.getElementById('videoUploadBtn');
@@ -61,10 +64,12 @@
         const outThresholdValue = document.getElementById('outThresholdValue');
 
         let cap, frame;
-        let framesArray = [];  // Array para guardar los fotogramas
+        let framesArray = [];  // Array para guardar todos los fotogramas
+        let allFramesCaptured = false; // Nuevo flag para saber si ya se capturaron todos los frames
         let cadence = 130;
         const cadenceSlider = document.getElementById('cadenceSlider');
         const cadenceValue = document.getElementById('cadenceValue');
+        const cadenceLabel = document.querySelector('label[for="cadenceSlider"]');
 
         videoElement.addEventListener('loadedmetadata', () => {
             const canvas = document.getElementById('canvas');
@@ -82,7 +87,13 @@
             strobeCanvas.height = videoElement.videoHeight;
             backgroundCanvas.width = videoElement.videoWidth;
             backgroundCanvas.height = videoElement.videoHeight;
-      });   
+            // Ajustar el máximo del slider según la duración y FPS
+            let fps = videoElement.frameRate || 30;
+            let maxFrames = Math.floor(videoElement.duration * fps);
+            cadenceSlider.max = maxFrames;
+            cadenceLabel.textContent = `Frames a procesar: ${cadenceSlider.value}`;
+            console.log(videoElement.duration*33, videoElement.frameRate)
+        });   
 
         // Cuando OpenCV está listo, esta función se ejecuta
         const onOpenCvReady = () => {
@@ -116,47 +127,64 @@
             }
         });
 
-        // Función para extraer los frames del video
-        const extractFrames = () => {
-            if (videoElement.paused || videoElement.ended) {
-                console.log("Fin del video. Total de frames:", framesArray.length);
-                processFrames();
-                console.log(framesArray);
-                return;
-            }
-
+        // Función para extraer todos los frames del video
+        const extractAllFrames = () => {
+            framesArray = [];
+            allFramesCaptured = false;
             cap = new cv.VideoCapture(videoElement);
-            videoElement.height = videoElement.videoHeight;
-            videoElement.width = videoElement.videoWidth;
+            let totalFrames = Math.floor(videoElement.duration * (videoElement.frameRate || 30));
             let frame = new cv.Mat(videoElement.videoHeight, videoElement.videoWidth, cv.CV_8UC4);
-            cap.read(frame);
-            // Clonamos el frame para guardarlo sin que lo sobrescriba el siguiente
-            framesArray.push(frame.clone());
-            frame.delete();  // Liberamos el original
-            setTimeout(extractFrames, cadence); // ~30 FPS
+            videoElement.currentTime = 0;
+            let currentFrame = 0;
+            function grabFrame() {
+                if (videoElement.currentTime >= videoElement.duration) {
+                    allFramesCaptured = true;
+                    frame.delete();
+                    processFrames();
+                    return;
+                }
+                cap.read(frame);
+                framesArray.push(frame.clone());
+                currentFrame++;
+                // Avanza al siguiente frame
+                videoElement.currentTime += 1 / (videoElement.frameRate || 30);
+                setTimeout(grabFrame, 0);
+            }
+            grabFrame();
         };
-
-        // Empieza a extraer los frames cuando el video está listo
+        
+        // Sobrescribe el evento onplay para capturar todos los frames solo una vez
         videoElement.onplay = () => {
-            extractFrames();
+            if (!allFramesCaptured) {
+                extractAllFrames();
+            }
         };
-
+        
+        // Nueva función para obtener los índices de los frames a procesar según la cadencia
+        function getSelectedFrameIndices(total, selected) {
+            if (selected >= total) {
+                return Array.from({length: total}, (_, i) => i);
+            }
+            let step = (total - 1) / (selected - 1);
+            let indices = [];
+            for (let i = 0; i < selected; i++) {
+                indices.push(Math.round(i * step));
+            }
+            console.log(indices)
+            return indices;
+        }
+        
+        // Modifica processFrames para usar solo los frames seleccionados
         const processFrames = () => {
+            if (!allFramesCaptured || framesArray.length === 0) return;
             const canvas = document.getElementById('canvas');
-            // const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
             const canvasOutput = document.getElementById('canvasOutput');
-            // const OutputCtx = canvasOutput.getContext('2d', { willReadFrequently: true });
             const strobeCanvas = document.getElementById('strobeCanvas');
-            const strobeCtx = strobeCanvas.getContext('2d');
+            const strobeCtx = strobeCanvas.getContext('2d', { willReadFrequently: true });
             const backgroundCanvas = document.getElementById('backgroundCanvas');
-            // const backgroundCtx = backgroundCanvas.getContext('2d');
-            let isBackgroundPainted = false
-
+            let isBackgroundPainted = false;
             videoElement.height = videoElement.videoHeight;
             videoElement.width = videoElement.videoWidth;
-
-            // let frame = new cv.Mat(frame.height, video.width, cv.CV_8UC4);
             let framePrev = new cv.Mat(videoElement.height, videoElement.width, cv.CV_8UC4);
             let gray = new cv.Mat();
             let grayPrev = new cv.Mat();
@@ -166,78 +194,60 @@
             let maskDiff = new cv.Mat();
             let kernel = cv.Mat.ones(3, 3, cv.CV_8U);
             let output = new cv.Mat(videoElement.height, videoElement.width, cv.CV_8UC4, new cv.Scalar(0,0,0,0));
-            let background = new cv.Mat(videoElement.height, videoElement.width, cv.CV_8UC4);
-
-            framesArray.map((frame, i) => {
-
-                if (i === framesArray.length - 1) {
-                    frame.delete(); gray.delete(); grayPrev.delete();
+            let background = new cv.Mat(videoElement.videoHeight, videoElement.videoWidth, cv.CV_8UC4);
+            // Selecciona los índices de los frames a procesar
+            let selectedCount = parseInt(cadenceSlider.value);
+            let indices = getSelectedFrameIndices(framesArray.length, selectedCount);
+            indices.forEach((idx, i) => {
+                let frame = framesArray[idx];
+                if (i === indices.length - 1) {
+                    gray.delete(); grayPrev.delete();
                     diff.delete(); mask.delete(); kernel.delete();
                     maskPrev.delete(); maskDiff.delete(); framePrev.delete();
-                    output.delete(); background.delete();       
-                    console.log('finish');
+                    output.delete(); background.delete();
                     return;
                 }
-
-                // lo convierte en gray
                 cv.cvtColor(frame, gray, cv.COLOR_RGBA2GRAY);
-                
-                if (isBackgroundPainted === false) {
-                    // cv.cvtColor(frame, background, cv.COLOR_RGBA2RGB);
+                if (!isBackgroundPainted) {
                     frame.copyTo(background);
                     cv.imshow(canvas, background);
                     isBackgroundPainted = true;
                 }
-                
                 if (!grayPrev.empty()) {
-
-                    console.log(i, ':', frame);
-                    // calcula diff
                     cv.absdiff(gray, grayPrev, diff);
-                    // aplica umbrales y crea mask
                     cv.threshold(diff, mask, parseInt(inThresholdSlider.value), parseInt(outThresholdSlider.value), cv.THRESH_BINARY);
-                    // aplica morfologicas
                     cv.morphologyEx(mask, mask, cv.MORPH_OPEN, kernel);
-                    // pinta en el canvas canvasOutput la mascara
                     cv.imshow('canvasOutput', mask);
-                    // --------------------------
                     let result = new cv.Mat();
                     let rgbaPlanes = new cv.MatVector();
                     let rgb = new cv.Mat();
-                    // Separar los canales RGB
                     cv.cvtColor(framePrev, rgb, cv.COLOR_RGBA2RGB);
-                    // Separar los canales RGB
-                    cv.split(rgb, rgbaPlanes); // R, G, B
-                    // Invertir la máscara para que el movimiento sea blanco
-                    // cv.bitwise_not(mask, mask);
-                    // Agregar canal alfa según la máscara
-                    rgbaPlanes.push_back(mask); // el blanco será opaco, negro será transparente
-                    // Unir canales RGBA
+                    cv.split(rgb, rgbaPlanes);
+                    rgbaPlanes.push_back(mask);
                     cv.merge(rgbaPlanes, result);
-                    // Acumular result en output usando max
-                    // cv.max(output, result, output);
                     let tempCanvas = document.createElement('canvas');
                     tempCanvas.width = frame.width;
                     tempCanvas.height = frame.height;
-                    let tempCtx = tempCanvas.getContext('2d');
-                    // Mostrar output en lugar de result
+                    let tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
                     cv.imshow(tempCanvas, result);
-                    // Dibujar la imagen segmentada
                     strobeCtx.drawImage(tempCanvas, 0, 0);
-                    
                     result.copyTo(background, mask);
-                    cv.imshow(backgroundCanvas, background);    
+                    cv.imshow(backgroundCanvas, background);
                 }
-
-                if (i !== framesArray.length - 1) {
+                if (i !== indices.length - 1) {
                     gray.copyTo(grayPrev);
                     frame.copyTo(framePrev);
                 }
-
             });
-            
         };
-
+        
+        // Actualiza el label de la cadencia para mostrar el número de frames a procesar
+        cadenceSlider.addEventListener('input', () => {
+            cadence = parseInt(cadenceSlider.value);
+            // cadenceValue.textContent = cadenceSlider.value;
+            cadenceLabel.textContent = `Frames a procesar: ${cadence}`;
+            if (allFramesCaptured) processFrames();
+        });
 
         // Botón Play/Pause para el video
         playPauseBtn.addEventListener('click', function() {
@@ -259,14 +269,16 @@
         inThresholdValue.textContent = inThresholdSlider.value;
         processFrames();
         });
-            outThresholdSlider.addEventListener('change', () => {
-            outThresholdValue.textContent = outThresholdSlider.value;
-            processFrames();
-            });
-                cadenceSlider.addEventListener('input', () => {
-                cadence = parseInt(cadenceSlider.value);
-                cadenceValue.textContent = cadenceSlider.value;
-                });
+
+        outThresholdSlider.addEventListener('change', () => {
+        outThresholdValue.textContent = outThresholdSlider.value;
+        processFrames();
+        });
+
+        cadenceSlider.addEventListener('input', () => {
+        cadence = parseInt(cadenceSlider.value);
+        });
+
         // Botón para descargar la imagen del backgroundCanvas
         const downloadBackgroundBtn = document.getElementById('downloadBackgroundBtn');
         downloadBackgroundBtn.addEventListener('click', function() {
@@ -278,6 +290,33 @@
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        });
+
+        // Lógica para el botón Reset
+        const resetAppBtn = document.getElementById('resetAppBtn');
+        resetAppBtn.addEventListener('click', function() {
+          // Limpiar todos los canvas
+          ['canvas','canvasOutput','strobeCanvas','backgroundCanvas'].forEach(id => {
+            const c = document.getElementById(id);
+            const ctx = c.getContext('2d');
+            ctx.clearRect(0, 0, c.width, c.height);
+          });
+          // Resetear variables y estados
+          framesArray = [];
+          allFramesCaptured = false;
+          cadence = parseInt(cadenceSlider.value);
+          inThresholdSlider.value = 10;
+          outThresholdSlider.value = 200;
+          inThresholdValue.textContent = '10';
+          outThresholdValue.textContent = '200';
+          cadenceSlider.value = 130;
+        //   cadenceValue.textContent = '130';
+          cadenceLabel.textContent = 'Frames a procesar: 130';
+         
+          // Mantener el video cargado y pausado al inicio
+          videoElement.pause();
+          videoElement.currentTime = 0;
+          playPauseBtn.textContent = 'Play';
         });
        </script>
 </body>
