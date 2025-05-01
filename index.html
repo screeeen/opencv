@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="prefetch" href="https://docs.opencv.org/4.7.0/opencv.js" as="script">
     <link rel="stylesheet" href="styles-mobile.css">
-    <title>Extraer Frames con OpenCV.js</title>
+    <title>STROBOLi</title>
 </head>
 <body>
     <script async src="https://docs.opencv.org/4.7.0/opencv.js" onload="onOpenCvReady();"></script>
-    <h1>Extraer Frames de un Video</h1>
+    <h1>STROBOLi</h1>
     <div style="text-align:center; margin: 1rem 0;">
       <input type="file" id="videoInput" accept="video/*" style="display:none;" />
-      <button id="videoUploadBtn" type="button">Seleccionar Video de la Galería</button>
+      <button id="videoUploadBtn" type="button">load video</button>
     </div>
 
     <video id="video" muted>
@@ -41,12 +41,15 @@
       </div>
 
       <button id="playPauseBtn">Play</button>
-    <canvas id="canvas" width="640" height="360"></canvas>
-    <canvas id="canvasOutput" width="640" height="360"></canvas>
-    <canvas id="strobeCanvas" width="640" height="360"></canvas>
+    <canvas id="canvas" width="640" height="360" style="display:none;"></canvas>
+    <canvas id="canvasOutput" width="640" height="360" style="display:none;"></canvas>
+    <canvas id="strobeCanvas" width="640" height="360" style="display:none;"></canvas>
     <canvas id="backgroundCanvas" width="640" height="360"></canvas>
     <div style="text-align:center; margin: 2rem 0;">
-      <button id="downloadBackgroundBtn" type="button" class="download-btn">Descargar Imagen Final</button>
+      <button id="downloadBackgroundBtn" type="button" class="download-btn">Download pic</button>
+    </div>
+    <div style="text-align:center; margin: 2rem 0;">
+      <button id="resetBtn" type="button" class="download-btn">Reset</button>
     </div>
     <script type="text/javascript">
         let videoElement = document.getElementById('video');
@@ -278,6 +281,30 @@
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        });
+        // Botón para reiniciar la experiencia sin perder el video cargado
+        const resetBtn = document.getElementById('resetBtn');
+        resetBtn.addEventListener('click', function() {
+          // Limpiar los canvas
+          ['canvas','canvasOutput','strobeCanvas','backgroundCanvas'].forEach(id => {
+            const c = document.getElementById(id);
+            const ctx = c.getContext('2d');
+            ctx.clearRect(0, 0, c.width, c.height);
+          });
+          // Limpiar los arrays y variables
+          framesArray = [];
+          // Resetear sliders a sus valores iniciales
+          cadenceSlider.value = 130;
+          cadenceValue.textContent = '130';
+          inThresholdSlider.value = 10;
+          inThresholdValue.textContent = '10';
+          outThresholdSlider.value = 200;
+          outThresholdValue.textContent = '200';
+          cadence = 130;
+          // Pausar el video y dejarlo en el primer frame
+          videoElement.pause();
+          videoElement.currentTime = 0;
+          playPauseBtn.textContent = 'Play';
         });
        </script>
 </body>

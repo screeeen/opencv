@@ -36,9 +36,10 @@ button {
   font-size: 1.1rem;
   border-radius: 8px;
   border: none;
-  background: #1976d2;
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  background: transparent;
+  color: black;
+  border: 1px solid black;
+  /* box-shadow: 0 2px 8px rgba(0,0,0,0.08); */
   transition: background 0.2s;
 }
 button:active {
