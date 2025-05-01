@@ -27,17 +27,7 @@
           <span id="cadenceValue" class="threshold-value">130</span>
         </div>
 
-        <div class="control-group">
-          <label for="inThreshold">Umbral Inferior:</label>
-          <input type="range" id="inThreshold" min="1" max="255" value="10">
-          <span id="inThresholdValue" class="threshold-value">10</span>
-        </div>
-    
-        <div class="control-group">
-          <label for="outThreshold">Umbral Superior:</label>
-          <input type="range" id="outThreshold" min="0" max="255" value="200">
-          <span id="outThresholdValue" class="threshold-value">200</span>
-        </div>
+  
       </div>
 
       <button id="playPauseBtn">Play</button>
@@ -45,8 +35,25 @@
     <canvas id="canvasOutput" width="640" height="360" style="display:none;"></canvas>
     <canvas id="strobeCanvas" width="640" height="360" style="display:none;"></canvas>
     <canvas id="backgroundCanvas" width="640" height="360"></canvas>
+    
+    <div class="controls-container">
+    <div class="control-group">
+        <label for="inThreshold">Umbral Inferior:</label>
+        <input type="range" id="inThreshold" min="1" max="255" value="10">
+        <span id="inThresholdValue" class="threshold-value">10</span>
+      </div>
+  
+      <div class="control-group">
+        <label for="outThreshold">Umbral Superior:</label>
+        <input type="range" id="outThreshold" min="0" max="255" value="200">
+        <span id="outThresholdValue" class="threshold-value">200</span>
+      </div>
+    </div>
     <div style="text-align:center; margin: 2rem 0;">
       <button id="downloadBackgroundBtn" type="button" class="download-btn">Download pic</button>
+    </div>
+    <div style="text-align:center; margin: 2rem 0;">
+      <button id="modeBtn" type="button" class="download-btn">Modo: Copy</button>
     </div>
     <div style="text-align:center; margin: 2rem 0;">
       <button id="resetBtn" type="button" class="download-btn">Reset</button>
@@ -66,9 +73,22 @@
         let cap, frame;
         let framesArray = [];  // Array para guardar los fotogramas
         let cadence = 130;
+        let mode = 'copy';
         const cadenceSlider = document.getElementById('cadenceSlider');
         const cadenceValue = document.getElementById('cadenceValue');
+        const modeBtn = document.getElementById('modeBtn');
 
+        modeBtn.addEventListener('click', function() {
+          if (mode === 'copy') {
+            mode = 'ghost';
+            modeBtn.textContent = 'Modo: Ghost';
+          } else {
+            mode = 'copy';
+            modeBtn.textContent = 'Modo: Copy';
+          }
+          processFrames();
+        });
+     
         videoElement.addEventListener('loadedmetadata', () => {
             const canvas = document.getElementById('canvas');
             const canvasOutput = document.getElementById('canvasOutput');
@@ -172,12 +192,18 @@
             let background = new cv.Mat(videoElement.height, videoElement.width, cv.CV_8UC4);
 
             framesArray.map((frame, i) => {
-
                 if (i === framesArray.length - 1) {
-                    frame.delete(); gray.delete(); grayPrev.delete();
-                    diff.delete(); mask.delete(); kernel.delete();
-                    maskPrev.delete(); maskDiff.delete(); framePrev.delete();
-                    output.delete(); background.delete();       
+                    // Liberar solo los objetos temporales, NO los almacenados en framesArray
+                    if (gray && typeof gray.delete === 'function') gray.delete();
+                    if (grayPrev && typeof gray.delete === 'function') grayPrev.delete();
+                    if (diff && typeof diff.delete === 'function') diff.delete();
+                    if (mask && typeof mask.delete === 'function') mask.delete();
+                    if (kernel && typeof kernel.delete === 'function') kernel.delete();
+                    if (maskPrev && typeof maskPrev.delete === 'function') maskPrev.delete();
+                    if (maskDiff && typeof maskDiff.delete === 'function') maskDiff.delete();
+                    if (framePrev && typeof framePrev.delete === 'function') framePrev.delete();
+                    if (output && typeof output.delete === 'function') output.delete();
+                    if (background && typeof background.delete === 'function') background.delete();
                     console.log('finish');
                     return;
                 }
@@ -228,8 +254,16 @@
                     // Dibujar la imagen segmentada
                     strobeCtx.drawImage(tempCanvas, 0, 0);
                     
-                    result.copyTo(background, mask);
+                    if (mode === 'ghost') {
+                      cv.max(background, result, background);
+                    } else {
+                      result.copyTo(background, mask);
+                    }
+
                     cv.imshow(backgroundCanvas, background);    
+                    // result.delete();
+                    // rgbaPlanes.delete();
+                    // rgb.delete();
                 }
 
                 if (i !== framesArray.length - 1) {
