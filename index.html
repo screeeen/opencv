@@ -23,14 +23,14 @@
     <div class="controls-container">
         <div class="control-group">
           <label for="cadenceSlider">Cadencia (ms entre frames):</label>
-          <input type="range" id="cadenceSlider" min="10" max="1000" value="130" step="1">
-          <span id="cadenceValue" class="threshold-value">130</span>
+          <input type="range" id="cadenceSlider" min="10" max="1000" value="225" step="1">
+          <span id="cadenceValue" class="threshold-value">225</span>
         </div>
 
   
       </div>
 
-      <button id="playPauseBtn">Play</button>
+    <button id="playPauseBtn">Play</button>
     <canvas id="canvas" width="640" height="360" style="display:none;"></canvas>
     <canvas id="canvasOutput" width="640" height="360" style="display:none;"></canvas>
     <canvas id="strobeCanvas" width="640" height="360" style="display:none;"></canvas>
@@ -39,14 +39,14 @@
     <div class="controls-container">
     <div class="control-group">
         <label for="inThreshold">Umbral Inferior:</label>
-        <input type="range" id="inThreshold" min="1" max="255" value="10">
+        <input type="range" id="inThreshold" min="1" max="100" value="10">
         <span id="inThresholdValue" class="threshold-value">10</span>
       </div>
   
       <div class="control-group">
         <label for="outThreshold">Umbral Superior:</label>
-        <input type="range" id="outThreshold" min="0" max="255" value="200">
-        <span id="outThresholdValue" class="threshold-value">200</span>
+        <input type="range" id="outThreshold" min="0" max="255" value="255">
+        <span id="outThresholdValue" class="threshold-value">255</span>
       </div>
     </div>
     <div style="text-align:center; margin: 2rem 0;">
@@ -328,12 +328,12 @@
           // Limpiar los arrays y variables
           framesArray = [];
           // Resetear sliders a sus valores iniciales
-          cadenceSlider.value = 130;
-          cadenceValue.textContent = '130';
+          cadenceSlider.value = 225;
+          cadenceValue.textContent = '225';
           inThresholdSlider.value = 10;
           inThresholdValue.textContent = '10';
-          outThresholdSlider.value = 200;
-          outThresholdValue.textContent = '200';
+          outThresholdSlider.value = 255;
+          outThresholdValue.textContent = '255';
           cadence = 130;
           // Pausar el video y dejarlo en el primer frame
           videoElement.pause();
