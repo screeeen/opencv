@@ -5,6 +5,42 @@ body {
   background: #f9f9f9;
 }
 
+.solapado {
+  font-size: 18px;
+  font-family: Arial, sans-serif;
+  font-weight: bold;
+  letter-spacing: .2rem;
+  color: #222;
+  display: flex;
+  justify-content: center;
+  padding: 50px;
+}
+
+.solapado span {
+  display: inline-block;
+  transform: rotate(var(--angle));
+}
+
+.l1 { --angle: -10deg; }
+.l2 { --angle: 5deg; }
+.l3 { --angle: -20deg; }
+.l4 { --angle: 15deg; }
+.l5 { --angle: -8deg; }
+.l6 { --angle: 12deg; }
+.l7 { --angle: -10deg; }
+.l8 { --angle: 5deg; }
+.l9 { --angle: -20deg; }
+.l10 { --angle: 15deg; }
+.l11 { --angle: -8deg; }
+.l12 { --angle: 52deg; }
+.l13 { --angle: -60deg; }
+.l14 { --angle: 8deg; }
+.l15 { --angle: -60deg; }
+.l16 { --angle: 55deg; }
+.l17 { --angle: -88deg; }
+.l18 { --angle: 37deg; }
+.l19 { --angle: 97deg; }
+
 h1 {
   font-size: 1.3rem;
   text-align: center;
