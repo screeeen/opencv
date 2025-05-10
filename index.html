@@ -35,9 +35,8 @@
       <button id="videoUploadBtn" type="button">load video</button>
     </div>
 
-    <video id="video" muted>
-        <source src="video.mov" type="video/mp4">
-        Tu navegador no soporta video.
+    <video id="video" style="display:none" muted>
+        <source src="video.mov" type="video/mp4">     
     </video>
 
     <div class="controls-container">
@@ -46,12 +45,10 @@
           <input type="range" id="cadenceSlider" min="10" max="1000" value="225" step="1">
           <span id="cadenceValue" class="threshold-value">225</span>
         </div>
-
-  
-      </div>
+    </div>
 
     <button id="playPauseBtn">Play</button>
-    <canvas id="canvas" width="640" height="360" style="display:none;"></canvas>
+    <canvas id="canvas" width="640" height="360"></canvas>
     <canvas id="canvasOutput" width="640" height="360" style="display:none;"></canvas>
     <canvas id="strobeCanvas" width="640" height="360" style="display:none;"></canvas>
     <canvas id="backgroundCanvas" width="640" height="360"></canvas>
@@ -80,8 +77,6 @@
     </div>
     <script type="text/javascript">
         let videoElement = document.getElementById('video');
-        let canvasElement = document.getElementById('canvas');
-        let context = canvasElement.getContext('2d');
         let videoInput = document.getElementById('videoInput');
         let playPauseBtn = document.getElementById('playPauseBtn');
         let videoUploadBtn = document.getElementById('videoUploadBtn');
@@ -111,20 +106,25 @@
      
         videoElement.addEventListener('loadedmetadata', () => {
             const canvas = document.getElementById('canvas');
+            canvas.height = videoElement.videoHeight;
+            canvas.width = videoElement.videoWidth;
             const canvasOutput = document.getElementById('canvasOutput');
             const strobeCanvas = document.getElementById('strobeCanvas');
+            
             const backgroundCanvas = document.getElementById('backgroundCanvas');
 
             videoElement.height = videoElement.videoHeight;
             videoElement.width = videoElement.videoWidth;
 
-            canvas.width = videoElement.videoWidth;
-            canvas.height = videoElement.videoHeight;
             canvasOutput.height = videoElement.videoHeight;
             strobeCanvas.width = videoElement.videoWidth;
             strobeCanvas.height = videoElement.videoHeight;
             backgroundCanvas.width = videoElement.videoWidth;
             backgroundCanvas.height = videoElement.videoHeight;
+
+            
+
+            
       });   
 
         // Cuando OpenCV está listo, esta función se ejecuta
@@ -155,7 +155,6 @@
             } else {
                 videoElement.src = "video.mov";
                 videoElement.load();
-                
             }
         });
 
@@ -169,8 +168,6 @@
             }
 
             cap = new cv.VideoCapture(videoElement);
-            videoElement.height = videoElement.videoHeight;
-            videoElement.width = videoElement.videoWidth;
             let frame = new cv.Mat(videoElement.videoHeight, videoElement.videoWidth, cv.CV_8UC4);
             cap.read(frame);
             // Clonamos el frame para guardarlo sin que lo sobrescriba el siguiente
@@ -185,20 +182,8 @@
         };
 
         const processFrames = () => {
-            const canvas = document.getElementById('canvas');
-            // const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-            const canvasOutput = document.getElementById('canvasOutput');
-            // const OutputCtx = canvasOutput.getContext('2d', { willReadFrequently: true });
-            const strobeCanvas = document.getElementById('strobeCanvas');
-            const strobeCtx = strobeCanvas.getContext('2d');
-            const backgroundCanvas = document.getElementById('backgroundCanvas');
-            // const backgroundCtx = backgroundCanvas.getContext('2d');
-            let isBackgroundPainted = false
-
-            videoElement.height = videoElement.videoHeight;
-            videoElement.width = videoElement.videoWidth;
-
+          let isBackgroundPainted = false
+          const strobeCtx = strobeCanvas.getContext('2d');
             // let frame = new cv.Mat(frame.height, video.width, cv.CV_8UC4);
             let framePrev = new cv.Mat(videoElement.height, videoElement.width, cv.CV_8UC4);
             let gray = new cv.Mat();
@@ -308,22 +293,34 @@
         });
         videoElement.addEventListener('play', function() {
             playPauseBtn.textContent = 'Pause';
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext("2d");
+            interval = setInterval(() => {
+            context.drawImage(video,0,0);
+            },30)
+
         });
+
         videoElement.addEventListener('pause', function() {
             playPauseBtn.textContent = 'Play';
         });
+
         inThresholdSlider.addEventListener('change', () => {
         inThresholdValue.textContent = inThresholdSlider.value;
         processFrames();
         });
-            outThresholdSlider.addEventListener('change', () => {
-            outThresholdValue.textContent = outThresholdSlider.value;
-            processFrames();
-            });
-                cadenceSlider.addEventListener('input', () => {
-                cadence = parseInt(cadenceSlider.value);
-                cadenceValue.textContent = cadenceSlider.value;
-                });
+
+        outThresholdSlider.addEventListener('change', () => {
+        outThresholdValue.textContent = outThresholdSlider.value;
+        processFrames();
+        });
+
+        cadenceSlider.addEventListener('input', () => {
+        cadence = parseInt(cadenceSlider.value);
+        cadenceValue.textContent = cadenceSlider.value;
+        });
+        
         // Botón para descargar la imagen del backgroundCanvas
         const downloadBackgroundBtn = document.getElementById('downloadBackgroundBtn');
         downloadBackgroundBtn.addEventListener('click', function() {
