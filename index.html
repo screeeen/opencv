@@ -110,7 +110,6 @@
             canvas.width = videoElement.videoWidth;
             const canvasOutput = document.getElementById('canvasOutput');
             const strobeCanvas = document.getElementById('strobeCanvas');
-            
             const backgroundCanvas = document.getElementById('backgroundCanvas');
 
             videoElement.height = videoElement.videoHeight;
@@ -194,7 +193,8 @@
             let maskDiff = new cv.Mat();
             let kernel = cv.Mat.ones(3, 3, cv.CV_8U);
             let output = new cv.Mat(videoElement.height, videoElement.width, cv.CV_8UC4, new cv.Scalar(0,0,0,0));
-            let background = new cv.Mat(videoElement.height, videoElement.width, cv.CV_8UC4);
+            // let background = new cv.Mat(videoElement.height, videoElement.width, cv.CV_8UC4);
+            let background = new cv.Mat();
 
             framesArray.map((frame, i) => {
                 if (i === framesArray.length - 1) {
@@ -216,8 +216,9 @@
                 // lo convierte en gray
                 cv.cvtColor(frame, gray, cv.COLOR_RGBA2GRAY);
                 
-                if (isBackgroundPainted === false) {
+                if (!isBackgroundPainted) {
                     // cv.cvtColor(frame, background, cv.COLOR_RGBA2RGB);
+                    console.log('copia background')
                     frame.copyTo(background);
                     cv.imshow(canvas, background);
                     isBackgroundPainted = true;
